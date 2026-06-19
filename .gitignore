@@ -21,3 +21,9 @@
 
 # Build files
 /build
+
+# Price monitor — never commit secrets or local state
+price-monitor/.env
+price-monitor/prices.json
+price-monitor/session.json
+price-monitor/monitor.log
