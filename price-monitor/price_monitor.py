@@ -24,8 +24,7 @@ from playwright.async_api import async_playwright, Page
 
 load_dotenv()
 
-ANTH_EMAIL = os.getenv("ANTH_EMAIL", "")
-ANTH_PASSWORD = os.getenv("ANTH_PASSWORD", "")
+ANTH_EMAIL = os.getenv("ANTH_EMAIL", "")   # Used only by login.py for pre-fill
 NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "")
 SMTP_EMAIL = os.getenv("SMTP_EMAIL", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")   # Gmail App Password, not your account password
@@ -152,26 +151,15 @@ def parse_price(text: str) -> Optional[float]:
 async def ensure_logged_in(page: Page):
     await page.goto(FAVORITES_URL, wait_until="networkidle")
     if "login" not in page.url.lower() and "sign-in" not in page.url.lower():
-        return  # Already logged in via saved session
+        return  # Session is still valid
 
-    print("Session expired or first run — logging in...")
-    await page.goto(LOGIN_URL, wait_until="networkidle")
-
-    await page.fill(
-        'input[type="email"], input[name="email"], input[placeholder*="Email" i]',
-        ANTH_EMAIL,
+    # Anthropologie uses 2FA — automated login is not possible.
+    # Run login.py to authenticate interactively and save a session.
+    raise RuntimeError(
+        "Not logged in or session expired.\n"
+        "Run:  python login.py\n"
+        "Complete the login + 2FA in the browser, then re-run the monitor."
     )
-    await page.fill('input[type="password"], input[name="password"]', ANTH_PASSWORD)
-    await page.click(
-        'button[type="submit"], button:has-text("Sign In"), button:has-text("Log In")'
-    )
-    await page.wait_for_load_state("networkidle")
-
-    if "login" in page.url.lower() or "sign-in" in page.url.lower():
-        raise RuntimeError(
-            "Login failed. Double-check ANTH_EMAIL and ANTH_PASSWORD in your .env file."
-        )
-    print("Logged in successfully.")
 
 
 async def scrape_favorites(page: Page) -> list[dict]:
@@ -289,8 +277,8 @@ async def add_to_cart(page: Page, item: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 async def run():
-    if not ANTH_EMAIL or not ANTH_PASSWORD:
-        print("Error: ANTH_EMAIL and ANTH_PASSWORD must be set in your .env file.")
+    if not SESSION_FILE.exists():
+        print("No saved session found. Run:  python login.py")
         sys.exit(1)
 
     prices = load_prices()
